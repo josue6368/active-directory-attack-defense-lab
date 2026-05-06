@@ -7,7 +7,7 @@ Built an Active Directory attack and defense lab with Windows Server, Windows 11
 
 This project demonstrates the creation of a small Active Directory lab environment used to monitor identity-based security events and apply basic defensive hardening.
 
-The lab was built using Windows Server as a Domain Controller, a Windows 11 domain-joined workstation, and Wazuh SIEM for centralized log monitoring. The goal was to simulate common Active Directory security events, validate log collection, and document defensive controls used to reduce identity-based attack risk.
+The lab was built using Windows Server as a Domain Controller, a Windows 11 domain-joined workstation, Kali Linux for domain reconnaissance and authentication testing, and Wazuh SIEM for centralized log monitoring. The goal was to simulate common Active Directory security events, validate log collection, document defensive controls, and analyze identity-based activity from both internal workstation activity and Kali-based testing.
 
 ---
 
@@ -16,6 +16,7 @@ The lab was built using Windows Server as a Domain Controller, a Windows 11 doma
 - **Domain Controller:** Windows Server VM named `DC01`
 - **Domain:** `homelab.local`
 - **Domain Workstation:** Windows 11 VM named `WIN11-CLIENT`
+- **Attacker/Test Machine:** Kali Linux VM
 - **SIEM:** Wazuh Server on Ubuntu Server
 - **Monitoring Agents:** Wazuh agents installed on `DC01` and `WIN11-CLIENT`
 - **Platform:** VMware
@@ -28,6 +29,9 @@ The lab was built using Windows Server as a Domain Controller, a Windows 11 doma
 - Windows Server
 - Active Directory Domain Services
 - Windows 11
+- Kali Linux
+- Nmap
+- smbclient
 - Wazuh SIEM
 - Ubuntu Server
 - VMware
@@ -51,6 +55,8 @@ No production systems, real users, or external environments were used.
 - Created test domain users and security groups
 - Joined a Windows 11 workstation to the domain
 - Installed Wazuh agents on both the Domain Controller and workstation
+- Used Kali Linux to enumerate exposed Active Directory services on DC01
+- Generated failed SMB authentication attempts from Kali for Wazuh detection
 - Generated authentication and account management events
 - Monitored Active Directory activity through Wazuh
 - Implemented an account lockout policy using Group Policy
@@ -116,6 +122,48 @@ Both systems were successfully connected to Wazuh and reported as active agents.
 
 <img width="1896" height="1079" alt="Screenshot 2026-05-05 181137" src="https://github.com/user-attachments/assets/1854e4aa-b97b-454f-8f8d-a24241046bb1" />
 
+---
+
+### Kali-Based Domain Reconnaissance and Authentication Testing
+
+Kali Linux was used to perform basic domain reconnaissance and generate failed authentication activity against the Domain Controller. This added an attacker/test machine perspective to the lab and helped validate that identity-based activity from external systems could be detected in Wazuh.
+
+#### Domain Service Enumeration
+
+An Nmap scan was performed against DC01 to identify exposed Active Directory-related services.
+
+```
+nmap -sV -p 53,88,135,139,389,445,464,593,636,3268,3269,3389 192.168.88.140
+```
+The scan identified common Active Directory services such as DNS, Kerberos, LDAP, SMB, RPC, and RDP.
+
+<br />
+<img width="1303" height="691" alt="Screenshot 2026-05-06 160020" src="https://github.com/user-attachments/assets/87df2490-ddfd-4581-a77b-3156daa71110" />
+
+### Failed SMB Authentication Testing
+
+Kali was also used to generate failed SMB authentication attempts against DC01 using a domain test account and an incorrect password.
+
+```
+for i in {1..8}; do smbclient -L //192.168.88.140 -U 'HOMELAB\jsmith%WrongPassword123!' -m SMB3; done
+```
+
+<img width="1301" height="428" alt="Screenshot 2026-05-06 161744" src="https://github.com/user-attachments/assets/729e86e4-d42a-4409-b0b9-dd1547516bf7" />
+
+<br />
+
+This generated failed authentication events on the Domain Controller, which were ingested and reviewed in Wazuh.
+
+<br />
+
+<img width="2306" height="1702" alt="Screenshot 2026-05-06 161753" src="https://github.com/user-attachments/assets/acc02e11-c40e-4bf2-a321-b3e1c7b52463" />
+
+<br />
+
+<img width="2294" height="1900" alt="Screenshot 2026-05-06 161831" src="https://github.com/user-attachments/assets/e957f825-1a38-44f5-b872-02ef58018d3e" />
+
+---
+
 ### Active Directory Monitoring Events
 #### Event 1: Failed Domain Logon Attempts
 
@@ -124,7 +172,7 @@ Failed domain logon attempts were generated using the test user account:
 ```
 HOMELAB\jsmith
 ```
-Incorrect passwords were entered multiple times from the domain-joined Windows 11 workstation.
+Incorrect passwords were entered from the domain-joined Windows 11 workstation and also generated from Kali Linux using SMB authentication attempts against DC01.
 
 #### Windows Event ID
 
@@ -314,7 +362,11 @@ User creation monitoring supports account lifecycle management and detection of 
 
 The temporary test account `tempuser` was deleted from Active Directory.
 
-#### Windows Event ID
+#### Windows Event ID 
+
+```
+4726 – A user account was deleted
+```
 
 #### Evidence
 
@@ -374,12 +426,13 @@ This control helps protect domain accounts from repeated authentication attempts
 
 | Activity                | Event ID | Description                                         |
 | ----------------------- | -------: | --------------------------------------------------- |
-| Failed domain logon     |     4625 | An account failed to log on                         |
+| Failed domain logon | 4625 | Failed authentication from WIN11-CLIENT and Kali SMB testing |
 | Successful domain logon |     4624 | An account was successfully logged on               |
 | Group member added      |     4728 | Member added to a security-enabled global group     |
 | Group member removed    |     4729 | Member removed from a security-enabled global group |
 | User account created    |     4720 | A user account was created                          |
 | User account deleted    |     4726 | A user account was deleted                          |
+| Kali AD service enumeration | N/A | Nmap scan identified exposed AD-related services on DC01 |
 
 
 ### MITRE ATT&CK Mapping
@@ -390,6 +443,8 @@ This control helps protect domain accounts from repeated authentication attempts
 | Valid user logon activity | T1078 – Valid Accounts       | Use of valid domain credentials             |
 | Group membership changes  | T1098 – Account Manipulation | Modifying accounts or permissions           |
 | User account creation     | T1136 – Create Account       | Creating accounts for access or persistence |
+| AD service enumeration | T1046 – Network Service Discovery | Scanning DC01 for exposed services |
+| SMB authentication attempts | T1110 – Brute Force | Repeated failed authentication using a domain account |
 
 ---
 
@@ -413,6 +468,9 @@ Key takeaways include:
 * Windows workstation domain join
 * Wazuh agent deployment
 * Windows Event Log analysis
+* Kali-based Active Directory reconnaissance
+* Nmap service enumeration
+* SMB authentication testing
 * Domain authentication monitoring
 * Group membership change monitoring
 * Account lifecycle monitoring
