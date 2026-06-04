@@ -420,6 +420,146 @@ Account lockout policies help reduce the effectiveness of brute-force and passwo
 
 This control helps protect domain accounts from repeated authentication attempts and supports defensive monitoring by creating clear events that can be investigated by security teams.
 
+
+
+
+### Mitigation Steps
+
+The following mitigation steps were identified based on the identity-based activity tested in this lab.
+
+#### 1. Enforce Account Lockout Policy
+
+Configure an account lockout policy through Group Policy to reduce the effectiveness of brute-force and password guessing attempts.
+
+Recommended lab configuration:
+
+```text
+Account lockout threshold: 5 invalid logon attempts
+Account lockout duration: 15 minutes
+Reset account lockout counter after: 15 minutes
+```
+
+This helps prevent repeated authentication attempts against domain accounts and creates clear events that defenders can investigate.
+
+#### 2. Monitor Failed Authentication Attempts
+
+Monitor repeated failed logon events to identify possible brute-force activity, password spraying, misconfigured credentials, or unauthorized access attempts.
+
+Important Event ID:
+
+```
+4625 - An account failed to log on
+```
+Defenders should review failed logons by username, source system, logon type, and frequency. Multiple failed attempts from the same source or against the same account should be investigated.
+
+#### 3. Correlate Failed and Successful Logons
+
+A successful logon after several failed attempts may indicate that an attacker guessed or obtained valid credentials.
+
+Important Event IDs:
+```
+4625 - An account failed to log on
+4624 - An account was successfully logged on
+```
+Defenders should correlate failed and successful authentication events to identify suspicious account usage, especially when the successful login comes from an unusual workstation, source IP, or time of day.
+
+#### 4. Monitor Group Membership Changes
+Group membership changes should be closely monitored because attackers may add compromised accounts to groups that provide additional access.
+
+Important Event IDs:
+```
+4728 - A member was added to a security-enabled global group
+4729 - A member was removed from a security-enabled global group
+```
+Defenders should review all changes to privileged or sensitive groups and confirm that each change was authorized.
+
+#### 5. Limit Privileged Group Membership
+
+Apply the principle of least privilege by limiting membership in administrative and high-access groups.
+
+Mitigation actions include:
+
+* Review Domain Admins, Enterprise Admins, and other privileged groups regularly
+* Remove unnecessary privileged access
+* Use separate administrative accounts for privileged tasks
+* Avoid using privileged accounts for normal daily activity
+* Document and approve privileged group membership changes
+
+This reduces the impact of a compromised account and limits opportunities for privilege escalation.
+
+#### 6. Monitor Account Creation and Deletion
+
+New account creation and account deletion events should be reviewed because attackers may create accounts for persistence or delete accounts to hide activity.
+
+Important Event IDs:
+
+```
+4720 - A user account was created
+4726 - A user account was deleted
+```
+
+Defenders should validate that new accounts are tied to approved business or administrative activity. Unexpected account creation, especially outside normal hours, should be investigated.
+
+#### 7. Harden Password Requirements
+
+Use strong password requirements to reduce the risk of password guessing and credential-based attacks.
+
+Recommended controls include:
+
+* Require complex passwords
+* Block commonly used or weak passwords
+* Avoid password reuse
+* Use longer passphrases when possible
+* Combine password policy with MFA where supported
+
+Strong password controls help reduce the likelihood of successful brute-force or password spraying attacks.
+
+#### 8. Reduce Exposed Services Where Possible
+
+Active Directory services such as SMB, LDAP, Kerberos, DNS, RPC, and RDP are commonly visible on domain controllers. In this lab, Kali was used to enumerate AD-related services with Nmap.
+
+Mitigation actions include:
+
+* Restrict management access to trusted systems
+* Limit RDP access to authorized administrators
+* Use firewall rules to reduce unnecessary exposure
+* Disable unused services
+* Monitor scanning and enumeration behavior
+
+Reducing unnecessary exposure makes it harder for attackers to map the environment.
+
+#### 9. Centralize Security Logging
+
+Forward Domain Controller and workstation logs to a centralized monitoring platform such as Wazuh.
+
+This improves visibility across the domain and allows defenders to investigate authentication activity, account changes, and suspicious behavior from one location.
+
+Key activity to centralize:
+
+* Failed logons
+* Successful logons
+* Account lockouts
+* Group membership changes
+* User account creation
+* User account deletion
+* Suspicious authentication attempts
+
+#### 10. Review Alerts and Investigate Suspicious Patterns
+
+Security events should not be reviewed in isolation. Defenders should look for patterns that may indicate identity-based compromise.
+
+Examples of suspicious patterns include:
+
+* Multiple failed logons followed by a successful logon
+* Failed logons from an unusual source system
+* New account creation followed by group membership changes
+* Privileged group changes outside normal administrative activity
+* Authentication attempts from unexpected systems
+* Account deletion after suspicious activity
+
+Reviewing event patterns helps defenders detect suspicious behavior before a compromised identity turns into a larger incident.
+
+
 ---
 
 ### Detection and Monitoring Summary
@@ -486,23 +626,6 @@ Key takeaways include:
 ### Author
 :floppy_disk: josue6368 <br/>
 Cybersecurity Analyst | IT Professional
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
