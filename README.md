@@ -421,7 +421,7 @@ Account lockout policies help reduce the effectiveness of brute-force and passwo
 This control helps protect domain accounts from repeated authentication attempts and supports defensive monitoring by creating clear events that can be investigated by security teams.
 
 
-
+---
 
 ### Mitigation Steps
 
